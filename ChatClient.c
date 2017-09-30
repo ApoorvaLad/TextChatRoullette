@@ -18,15 +18,15 @@ int main() {
 	int chatting = 0;
 	paired = 0;
 
-	char clientRequest[COM_SIZE];
+	char command[MAX_CMD_SIZE];
 
-	while (fgets(clientRequest, sizeof clientRequest, stdin)) {
-		int lenCommand = strlen(clientRequest);
-		if (lenCommand > 0 && clientRequest[lenCommand - 1] == '\n') {
-			clientRequest[lenCommand - 1] = '\0';
+	while (fgets(command, sizeof command, stdin)) {
+		int lenCommand = strlen(command);
+		if (lenCommand > 0 && command[lenCommand - 1] == '\n') {
+			command[lenCommand - 1] = '\0';
 		}
 
-		if (strcmp(clientRequest, "CONNECT") == 0) {
+		if (strcmp(command, "CONNECT") == 0) {
 			if (connection_active > 0) {
 				printf(
 						"An active connection is already running on %s at port %s\n",
@@ -49,13 +49,11 @@ int main() {
 							global_hostname);
 				}
 			}
-		}
-
-		else if (strcmp(clientRequest, "CHAT") == 0) {
+		} else if (strcmp(command, "CHAT") == 0) {
 			if (connection_active > 0) {
 				struct packet send_packet;
 
-				if (createPacketForSending(clientRequest, &send_packet) == -1) {
+				if (createPacketForSending(command, &send_packet) == -1) {
 					fprintf(stderr, "Try again.\n\n");
 				} else {
 					sendPacketData(&send_packet);
@@ -64,14 +62,15 @@ int main() {
 
 				memset(&send_packet, 0, sizeof(struct packet));
 			} else {
-				printf(
-						"You are not connected to the TCR server. CONNECT first.\n\n");
+				printf("You are not connected to the TCR server. CONNECT first.\n\n");
 			}
-		} else if (strcmp(clientRequest, "TEXT") == 0) {
+		}
+
+		else if (strcmp(command, "TEXT") == 0) {
 			if (connection_active > 0 && chatting) {
 				struct packet send_packet;
 
-				int return_genpacket = createPacketForSending(clientRequest,
+				int return_genpacket = createPacketForSending(command,
 						&send_packet);
 				if (return_genpacket == -1) {
 					fprintf(stderr,
@@ -86,16 +85,15 @@ int main() {
 			} else if (connection_active > 0 && !chatting) {
 				printf("You need to enter the CHAT command first .\n\n");
 			} else {
-				printf(
-						"You are not connected to the TCR server. CONNECT first.\n\n");
+				printf("You are not connected to the TCR server. CONNECT first.\n\n");
 			}
 		}
 
-		else if (strcmp(clientRequest, "QUIT") == 0) {
+		else if (strcmp(command, "QUIT") == 0) {
 			if (connection_active > 0) {
 				struct packet send_packet;
 
-				if (createPacketForSending(clientRequest, &send_packet) == -1) {
+				if (createPacketForSending(command, &send_packet) == -1) {
 					fprintf(stderr, "Error occurred during packet creation.\n");
 				} else {
 					sendPacketData(&send_packet);
@@ -108,13 +106,13 @@ int main() {
 				printf(
 						"You are not connected to the TCR server. CONNECT first.\n\n");
 			}
-		} else if (strcmp(clientRequest, "EXIT") == 0) {
+		} else if (strcmp(command, "EXIT") == 0) {
 			printf("Exiting chat\n");
 			break;
-		} else if (strcmp(clientRequest, "HELP") == 0) {
+		} else if (strcmp(command, "HELP") == 0) {
 			if (connection_active > 0) {
 				struct packet send_packet;
-				if (createPacketForSending(clientRequest, &send_packet) == -1) {
+				if (createPacketForSending(command, &send_packet) == -1) {
 					fprintf(stderr, "Error occurred during packet creation.\n");
 				} else {
 					sendPacketData(&send_packet);
@@ -132,5 +130,4 @@ int main() {
 	close(fd_socket);
 	printf("Client is closed.\n");
 	return 0;
-
 }

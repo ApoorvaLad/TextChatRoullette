@@ -68,7 +68,7 @@ int main() {
 
 				memset(&dataPacket, 0, sizeof(struct datapacket));
 			} else if (activeConnection > 0 && !chatting) {
-				printf("You need to enter the BEGIN command first .\n\n");
+				printf("You need to enter the BEGIN command first.\n");
 			} else {
 				printf("CONNECT to the Chat Server first.");
 			}
@@ -88,7 +88,7 @@ int main() {
 
 				memset(&dataPacket, 0, sizeof(struct datapacket));
 			} else {
-				printf("CONNECT to the Chat Server first.");
+				printf("CONNECT to the Chat Server first.\n");
 			}
 		} else if (strcmp(command, "EXIT") == 0) {
 			printf("Exiting chat\n");
@@ -103,7 +103,7 @@ int main() {
 				}
 				memset(&dataPacket, 0, sizeof(struct datapacket));
 			} else {
-				printf("Connection to server is not established.\n\n");
+				printf("Connection to server is not established.\n");
 			}
 		} else {
 			strcpy(command, "CHAT");

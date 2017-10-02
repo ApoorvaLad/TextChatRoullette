@@ -1,153 +1,7 @@
 #include "server.h"
 
-void throwout(int fdSocket, int type) {
 
-	char person1[100];
-	char person2[100];
-	strcpy(person1, "You are THROWN OUT by the server");
-	strcpy(person2, "You partner has been THROWN OUT");
-
-	strcpy(person1, "You are ENDED by the server");
-
-	if (pairedPartners[fdSocket] != fdSocket && fdSocket > -1) {
-
-		struct packet throwPacket;
-		struct packet throwPacketClient;
-		strcpy(throwPacket.command, "SERVER_THROWOUT");
-		strcpy(throwPacketClient.command, "SERVER_THROWOUT");
-
-		strcpy(throwPacket.message, person1);
-		strcpy(throwPacketClient.message, person2);
-
-		sendDataPacket(fdSocket, &throwPacket);
-		sendDataPacket(pairedPartners[fdSocket], &throwPacketClient);
-
-		removeChats(fdSocket, pairedPartners[fdSocket]);
-	} else if (pairedPartners[fdSocket] == fdSocket) {
-		struct packet throw_packet;
-		strcpy(throw_packet.command, "SERVER_THROWOUT");
-
-		strcpy(throw_packet.message, person1);
-		sendDataPacket(fdSocket, &throw_packet);
-		removeChat(fdSocket, 1);
-	}
-}
-
-void clear_var(int c) {
-	pairedPartners[c] = -2;
-	blockedUsers[c] = 0;
-	noOfBytesUsed[c] = 0;
-	memset(&clientUser[c], 0, COM_SIZE * sizeof(clientUser[0]));
-}
-
-void end() {
-	int c;
-	for (c = 0; c < ACTIVE_LIST; c++) {
-		if (pairedPartners[c] > -2) {
-			throwout(c, 3);
-		}
-		clear_var(c);
-	}
-	startServer = 0;
-}
-
-void print_server_stats() {
-	int c;
-	int num_chat_queue = 0;
-	int num_chatting = 0;
-	int num_blocked = 0;
-	FILE *fp;
-
-	fp = fopen("serverstatus.txt", "w");
-	for (c = 0; c < ACTIVE_LIST; c++) {
-		if (pairedPartners[c] == -1 || pairedPartners[c] == c)
-			num_chat_queue++;
-		else if (pairedPartners[c] != c && pairedPartners[c] != -2) {
-			num_chatting++;
-		}
-		if (blockedUsers[c] > 0)
-			num_blocked++;
-	}
-	printf("*******************************************\n");
-	printf("***************SERVER STATS****************\n");
-	printf("*******************************************\n");
-
-	fprintf(fp, "*******************************************\n");
-	fprintf(fp, "***************SERVER STATS****************\n");
-	fprintf(fp, "*******************************************\n");
-
-	printf("\nClients on chat queue: %d\n", num_chat_queue);
-	fprintf(fp, "\nClients on chat queue: %d\n", num_chat_queue);
-	printf("____________________________________________\n");
-	fprintf(fp, "____________________________________________\n");
-	printf("Client username\t|\tSocket Number\n");
-	fprintf(fp, "Client username\t|\tSocket Number\n");
-	printf("____________________________________________\n");
-	fprintf(fp, "____________________________________________\n");
-
-	for (c = 0; c < ACTIVE_LIST; c++) {
-		if (pairedPartners[c] == -1) {
-			printf("%s\t\t|\t\t%d\n", "<<no username set yet>>", c);
-			fprintf(fp, "%s\t\t|\t\t%d\n", "<<no username set yet>>", c);
-		} else if (pairedPartners[c] == c) {
-			printf(" %s \t | %d \n", clientUser[c], c);
-			fprintf(fp, " %s \t | %d \n", clientUser[c], c);
-		}
-	}
-
-	printf("\nClient Chatting: %d\n", num_chatting);
-	fprintf(fp, "\nClient Chatting: %d\n", num_chatting);
-	printf(
-			"______________________________________________________________________\n");
-	fprintf(fp,
-			"______________________________________________________________________\n");
-	printf(
-			"First Client username | First Client Socket Number -> Second Client username | Second Client Socket Number || Bytes Used\n");
-	fprintf(fp,
-			"First Client username | First Client Socket Number -> Second Client username|Second        Client Socket Number || Bytes Used\n");
-	printf(
-			"_______________________________________________________________________\n");
-	fprintf(fp,
-			"_______________________________________________________________________\n");
-
-	for (c = 0; c < ACTIVE_LIST; c++) {
-		if (pairedPartners[c] != -1 && pairedPartners[c] != c
-				&& pairedPartners[c] != -2) {
-
-			printf("%s\t\t|\t\t %d\t\t -> \t\t%s\t\t|\t\t%d\t\t||\t%d\n",
-					clientUser[c], c, clientUser[pairedPartners[c]],
-					pairedPartners[c], noOfBytesUsed[c]);
-			fprintf(fp, "%s\t\t|\t\t %d\t\t -> \t\t%s\t\t|\t\t%d\t\t||\t%d\n",
-					clientUser[c], c, clientUser[pairedPartners[c]],
-					pairedPartners[c], noOfBytesUsed[c]);
-
-		}
-	}
-
-	printf("\nClient Blocked: %d\n", num_blocked);
-	fprintf(fp, "\nClient Blocked: %d\n", num_blocked);
-	printf(
-			"______________________________________________________________________\n");
-	fprintf(fp,
-			"______________________________________________________________________\n");
-	printf("Client username\t|\tSocket Number\n");
-	fprintf(fp, "Client username\t|\tSocket Number\n");
-	printf(
-			"_______________________________________________________________________\n");
-	fprintf(fp,
-			"_______________________________________________________________________\n");
-
-	for (c = 0; c < ACTIVE_LIST; c++) {
-		if (blockedUsers[c] > 0) {
-			printf(" %s \t | %d \n", clientUser[c], c);
-			fprintf(fp, " %s \t | %d \n", clientUser[c], c);
-		}
-	}
-
-	fclose(fp);
-}
-
-void block_client(int fdSocket) {
+void blockUser(int fdSocket) {
 	char client1[100];
 	char client2[100];
 	strcpy(client1, "You are blocked by the server");
@@ -181,20 +35,160 @@ void block_client(int fdSocket) {
 	blockedUsers[fdSocket] = 1;
 }
 
-void unblock_client(int fdSocket) {
+void unblockUser(int fdSocket) {
 	blockedUsers[fdSocket] = 0;
-
 	struct packet client;
-
 	strcpy(client.command, "ADMIN_RESPONSE");
 	strcpy(client.username, "Server");
-	strcpy(client.message,
-			"You have been unblocked by the server. You can participate in chats again\n");
+	strcpy(client.message,"Your status has been unblocked by the server.S\n");
 	sendDataPacket(fdSocket, &client);
 
 }
 
-void *handle_userIO(void *param, int socket_fd) {
+void throwout(int fdSocket) {
+
+	char person1[20];
+	char person2[20];
+
+	strcpy(person1, "You are THROWN OUT by the server");
+	strcpy(person2, "You partner has been THROWN OUT");
+
+	if (pairedPartners[fdSocket] != fdSocket && fdSocket > -1) {
+
+		struct packet throwPacketClient1;
+		struct packet throwPacketClient2;
+		strcpy(throwPacketClient1.command, "SERVER_THROWOUT");
+		strcpy(throwPacketClient2.command, "SERVER_THROWOUT");
+
+		strcpy(throwPacketClient1.message, person1);
+		strcpy(throwPacketClient2.message, person2);
+
+		sendDataPacket(fdSocket, &throwPacketClient1);
+		sendDataPacket(pairedPartners[fdSocket], &throwPacketClient2);
+
+		removeChats(fdSocket, pairedPartners[fdSocket]);
+	} else if (pairedPartners[fdSocket] == fdSocket) {
+		struct packet throwPacketClient1;
+		strcpy(throwPacketClient1.command, "SERVER_THROWOUT");
+		strcpy(throwPacketClient1.message, person1);
+		sendDataPacket(fdSocket, &throwPacketClient1);
+		removeChat(fdSocket, 1);
+	}
+}
+
+void endServer() {
+	int c;
+	for (c = 0; c < ACTIVE_LIST; c++) {
+		if (pairedPartners[c] > -2) {
+			throwout(c);
+		}
+		pairedPartners[c] = -2;
+		blockedUsers[c] = 0;
+		noOfBytesUsed[c] = 0;
+		memset(&clientUser[c], 0, COM_SIZE * sizeof(clientUser[0]));
+	}
+	startServer = 0;
+}
+
+
+
+void showStats() {
+	int itr;
+	int chatQueueCount = 0;
+	int chattingUserCount = 0;
+	int blockedUserCount = 0;
+	FILE *file_ptr;
+
+	file_ptr = fopen("serverCurrserverStats.txt", "w");
+	for (itr = 0; itr < ACTIVE_LIST; itr++) {
+		if (pairedPartners[itr] == -1 || pairedPartners[itr] == itr)
+			chatQueueCount++;
+		else if (pairedPartners[itr] != itr && pairedPartners[itr] != -2) {
+			chattingUserCount++;
+		}
+		if (blockedUsers[itr] > 0)
+			blockedUserCount++;
+	}
+
+
+	printf("------------------SERVER STATS----------------------\n");
+
+	fprintf(file_ptr, "--------------------SERVER STATS-------------------------\n");
+
+	printf("\nUsers on queue: %d\n", chatQueueCount);
+	fprintf(file_ptr, "\nUsers on queue: %d\n", chatQueueCount);
+	printf("____________________________________________\n");
+	fprintf(file_ptr, "____________________________________________\n");
+
+	printf("User\t:\tSocket Number\n");
+	fprintf(file_ptr, "User\t:\tSocket Number\n");
+	printf("____________________________________________\n");
+	fprintf(file_ptr, "____________________________________________\n");
+
+	printf("----------CHAT QUEUE SUMMARY-------------------------------\n");
+	fprintf(file_ptr, "-------------CHAT QUEUE SUMMARY-------------------------------\n");
+
+	for (itr = 0; itr < ACTIVE_LIST; itr++) {
+		if (pairedPartners[itr] == -1) {
+			printf("%s\t\t:\t\t%d\n", "No Users Active", itr);
+			fprintf(file_ptr, "%s\t\t:\t\t%d\n", "No Users Active", itr);
+		} else if (pairedPartners[itr] == itr) {
+			printf(" %s \t : %d \n", clientUser[itr], itr);
+			fprintf(file_ptr, " %s \t : %d \n", clientUser[itr], itr);
+		}
+	}
+
+		printf("----------ACTIVE USERS-------------------------------\n");
+		fprintf(file_ptr, "-------------ACTIVE USERS-------------------------------\n");
+
+		printf("\nNo of Active Users Chatting: %d\n", chattingUserCount);
+		fprintf(file_ptr, "\nNo of Active Users Chatting: %d\n", chattingUserCount);
+		printf("______________________________________________________________________\n");
+		fprintf(file_ptr,"______________________________________________________________________\n");
+		printf("User One : Socket One -> User Two : Socket Two :::: Bytes Used\n");
+		fprintf(file_ptr,"User One : Socket One -> User Two : Socket Two ::: Bytes Used\n");
+		printf("_______________________________________________________________________\n");
+		fprintf(file_ptr,"_______________________________________________________________________\n");
+
+		for (itr = 0; itr < ACTIVE_LIST; itr++) {
+			if (pairedPartners[itr] != -1 && pairedPartners[itr] != itr
+					&& pairedPartners[itr] != -2) {
+
+				printf("%s\t\t:\t\t %d\t\t -> \t\t%s\t\t:\t\t%d\t\t::::\t%d\n",
+						clientUser[itr], itr, clientUser[pairedPartners[itr]],
+						pairedPartners[itr], noOfBytesUsed[itr]);
+				fprintf(file_ptr, "%s\t\t:\t\t %d\t\t -> \t\t%s\t\t:\t\t%d\t\t::::\t%d\n",
+						clientUser[itr], itr, clientUser[pairedPartners[itr]],
+						pairedPartners[itr], noOfBytesUsed[itr]);
+
+			}
+		}
+
+
+
+	printf("----------BLOCKED USERS-------------------------------\n");
+	fprintf(file_ptr, "-------------BLOCKED USERS-------------------------------\n");
+
+	printf("\nUsers Blocked: %d\n", blockedUserCount);
+	fprintf(file_ptr, "\nUsers Blocked: %d\n", blockedUserCount);
+	printf("______________________________________________________________________\n");
+	fprintf(file_ptr,"______________________________________________________________________\n");
+	printf("User One : Socket One -> User Two : Socket Two\n");
+	fprintf(file_ptr,"User One : Socket One -> User Two : Socket Two\n");
+	printf("_______________________________________________________________________\n");
+	fprintf(file_ptr,"_______________________________________________________________________\n");
+
+	for (itr = 0; itr < ACTIVE_LIST; itr++) {
+		if (blockedUsers[itr] > 0) {
+			printf(" %s \t : %d \n", clientUser[itr], itr);
+			fprintf(file_ptr, " %s \t : %d \n", clientUser[itr], itr);
+		}
+	}
+
+	fclose(file_ptr);
+}
+
+void *receivedMessage(void *param, int fdSocket) {
 
 	char command[COM_SIZE];
 
@@ -204,97 +198,82 @@ void *handle_userIO(void *param, int socket_fd) {
 		if (len > 0 && command[len - 1] == '\n') {
 			command[len - 1] = '\0';
 		}
-
-		int index = 1;
-		char* pch;
-
-		char sub_command[2][COM_SIZE];
-		memset(sub_command[0], "", COM_SIZE);
-		memset(sub_command[1], "", COM_SIZE);
-
 		int isEmpty = strlen(command);
 		if (isEmpty == 0)
 			continue;
 
-		pch = strtok(command, " ");
-		strcpy(sub_command[0], pch);
-		while (pch != NULL) {
-			pch = strtok(NULL, " ");
-			if (pch != NULL) {
-				strcpy(sub_command[1], pch);
-				index++;
-				if (index > 1)
+		int noOfArguements = 1;
+		char* commandTokenizer;
+		char commSplitArray[2][COM_SIZE];
+		memset(commSplitArray[0], 0, COM_SIZE);
+		memset(commSplitArray[1], 0, COM_SIZE);
+
+		commandTokenizer = strtok(command, " ");
+		strcpy(commSplitArray[0], commandTokenizer);
+		while (commandTokenizer != NULL) {
+			commandTokenizer = strtok(NULL, " ");
+			if (commandTokenizer != NULL) {
+				strcpy(commSplitArray[1], commandTokenizer);
+				noOfArguements++;
+				if (noOfArguements > 1)
 					break;
 			}
 		}
 
-		if (index == 1) {
-			char* c1 = &sub_command[0];
-			if (!strcmp(c1, "EXIT")) {
-				printf("Exiting server. Good bye.\n");
-				close(socket_fd);
-				exit(0);
-			} else if (!strcmp(c1, "HELP")) {
-				printf(
-						"\nEXIT - Exit the server\nSTART - Start the server\nSTATS - Get status of server. This will write a txt file too in the running folder.\nEND - End all chats and alert clients\nBLOCK - Block a specific client with a socket (Usage: BLOCK <socket number>. To know socket number, run STATS\nUNBLOCK - Unblock a specific client with a socket (Usage: UNBLOCK <socket number>. To know socket number, run STATS\nTHROWOUT - Throw a specific client with a socket (Usage: THORWOUT <socket number>. To know socket number, run STATS\n");
-			} else if (!strcmp(c1, "START")) {
+		if (noOfArguements == 1) {
+			if (strcmp(commSplitArray[0], "START") == 0) {
 				if (startServer == 0) {
 					startServer = 1;
-					printf(
-							"************SERVER has successfully start and now waiting for clients************\n");
+					printf("------------Server Started. Waiting for Clients to Connect--------\n");
 				} else {
-					printf("SERVER is alrady running\n");
+					printf("Server instance already running. Please check console for more information\n");
 				}
-			} else if (!strcmp(c1, "STATS")) {
+			} else if (strcmp(commSplitArray[0], "STATS") == 0) {
 				if (startServer == 0)
-					printf(
-							"SERVER has not yet been STARTED. Please START first.\n");
+					printf("SERVER has not yet been STARTED. Please START first.\n");
 				else
-					print_server_stats();
-			} else if (!strcmp(c1, "END")) {
+					showStats();
+			} else if (strcmp(commSplitArray[0], "END") == 0) {
 				if (startServer == 1) {
-					printf("SERVER is being killed......\n");
-					end();
-					printf("SERVER has successfully been killed\n");
+					printf("Server is being stopped......\n");
+					endServer();
+					printf("Server been stopped\n");
 				} else {
-					printf(
-							"SERVER has not yet been STARTED. Please START first.\n");
+					printf("Server instance has not been started yet.\n");
 				}
-
+			} else if (strcmp(commSplitArray[0], "EXIT") == 0) {
+				printf("Server has stopped.\n");
+				close(fdSocket);
+				exit(0);
+			} else if (strcmp(commSplitArray[0], "HELP") == 0) {
+				printf("\nSTART - Starts the server\nSTATS - Get the updates about Users and socket running on this Server.\nEND - End all active chats and alerts users about it.\nEXIT - Exits the server.\nBLOCK - Block a specific user running on a socket of server (TIP: BLOCK <socket number>. To know socket number, PRESS STATS).\nUNBLOCK - Unblock a previously BLOCKED user running on a socket on server (TIP: UNBLOCK <socket number>. To know socket number, PRESS STATS).\nTHROWOUT - 'Throw' an active user out of the chat list(TIP: THROWOUT <socket number>. To know socket number, run STATS)\n");
 			} else {
-				printf(
-						"Invalid command. Please type HELP for available command\n");
+				printf("Command unrecognized. Press HELP for more information\n");
 			}
-		} else if (index == 2) {
-			char* c1 = &sub_command[0];
-			char* c2 = &sub_command[1];
-			if (!strcmp(c1, "BLOCK")) {
-				int socket = atoi(c2);
-				printf("Blocking socket %d\n", socket);
-				block_client(socket);
-				printf("Blocked socket %d\n", socket);
-			} else if (!strcmp(c1, "UNBLOCK")) {
-				int socket = atoi(c2);
-				printf("Unblocking socket %d\n", socket);
-				unblock_client(socket);
-				printf("Unblocked socket %d\n", socket);
-			} else if (!strcmp(c1, "THROWOUT")) {
-				int socket = atoi(c2);
-				printf("Throwing out socket %d\n", socket);
-				throwout(socket, 2);
-				printf("Thrown out socket %d\n", socket);
+		} else if (noOfArguements == 2) {
+			if (strcmp(commSplitArray[0], "BLOCK") == 0) {
+				int socket = atoi(&commSplitArray[1]);
+				blockUser(socket);
+				printf("Blocked user socket %d\n", socket);
+			} else if (strcmp(commSplitArray[0], "UNBLOCK") == 0) {
+				int socket = atoi(&commSplitArray[1]);
+				unblockUser(socket);
+				printf("Unblocked user on socket %d\n", socket);
+			} else if (strcmp(commSplitArray[0], "THROWOUT") == 0) {
+				int socket = atoi(&commSplitArray[1]);
+				throwout(socket);
+				printf("User thrown out of socket %d\n", socket);
 			} else {
-				printf(
-						"Invalid Command. Please type HELP for available commands\n");
+				printf("Command unrecognized. Press HELP for more information\n");
 			}
 		} else {
-			printf(
-					"Invalid Command. Please type HELP for available commands\n");
+			printf("Command unrecognized. Press HELP for more information\n");
 		}
 	}
 
 	return NULL;
 }
+
 
 int main() {
 
@@ -321,7 +300,7 @@ int main() {
 
 	pthread_t thread_start;
 
-	pthread_create(&thread_start, NULL, handle_userIO, NULL);
+	pthread_create(&thread_start, NULL, receivedMessage, NULL);
 
 	printf("Server initiating.Type START to start the server. Press HELP for further commands.\n");
 
@@ -334,7 +313,7 @@ int main() {
 
 	fdLast = socketListener;
 
-	printf("\n----------------Server Started. Running on port %s------------------- *****\n",
+	printf("\n----------------Server Started. Running on port %s-------------------------\n",
 			PORT_NO);
 
 	int i;
@@ -377,4 +356,3 @@ int main() {
 	}
 	return 0;
 }
-

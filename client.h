@@ -46,6 +46,7 @@ int createPacketForSending(const char *command, struct datapacket *dataPacket);
 int sendPacketData(struct datapacket *packet);
 void *getMessage(void *commandFlag);
 void messageHandler(struct datapacket *dataReceived);
+void sendFileData(struct datapacket *sendPacket);
 
 int serverConnect(struct addrinfo *serverDetails,struct addrinfo **serverInfo,struct addrinfo **addressInfoPointer, char *hostname, char *portNo ) {
 	memset(serverDetails, 0, sizeof *serverDetails);
@@ -190,8 +191,7 @@ void *getMessage(void *commandFlag) {
 	while (activeConnection) {
 		messageReceived = recv(fdSocket, (void *) &receivedMsg,sizeof(struct datapacket), 0);
 		if (!messageReceived) {
-			fprintf(stderr,
-					"SERVER has hung up. Lost connection with server.\n");
+			fprintf(stderr,"Connection to Server Lost.\n");
 			activeConnection = 0;
 			close(fdSocket);
 			break;
@@ -206,28 +206,27 @@ void *getMessage(void *commandFlag) {
 }
 
 void messageHandler(struct datapacket *receivedMsg) {
-	if (!strcmp((*receivedMsg).command, "ACKN")) {
-			printf("%s\n", (*receivedMsg).message);
-		} else if (!strcmp((*receivedMsg).command, "KEEP ALIVE")) {
-			printf("%s\n", (*receivedMsg).message);
-			paired = 1;
-		} else if (!strcmp((*receivedMsg).command, "QUIT")) {
-			printf("%s\n", (*receivedMsg).message);
-		} else if (!strcmp((*receivedMsg).command, "HELP")) {
-			printf("%s\n", (*receivedMsg).message);
-		} else if (!strcmp((*receivedMsg).command, "CHAT")) {
-			printf("%s ::: %s\n", (*receivedMsg).username,
-					(*receivedMsg).message);
-		} else if (!strcmp((*receivedMsg).command, "ADMIN_RESPONSE")) {
-			printf("%s\n", (*receivedMsg).message);
+	if (strcmp((*receivedMsg).command, "ACKN") == 0) {
+		printf("%s\n", (*receivedMsg).message);
+	} else if (strcmp((*receivedMsg).command, "KEEP_ALIVE") == 0) {
+		printf("%s\n", (*receivedMsg).message);
+		paired = 1;
+	} else if (strcmp((*receivedMsg).command, "QUIT") == 0) {
+		printf("%s\n", (*receivedMsg).message);
+	} else if (strcmp((*receivedMsg).command, "HELP") == 0) {
+		printf("%s\n", (*receivedMsg).message);
+	} else if (strcmp((*receivedMsg).command, "CHAT") == 0) {
+		printf("%s ::: %s\n", (*receivedMsg).username, (*receivedMsg).message);
+	} else if (strcmp((*receivedMsg).command, "ADMIN_RESPONSE") == 0) {
+		printf("%s\n", (*receivedMsg).message);
 
-		} else if (!strcmp((*receivedMsg).command, "SERVER_THROWOUT")) {
-			printf("%s\n", (*receivedMsg).message);
-			paired = 0;
-			if (paired == 0) {
-				printf("You are not paired with anyone");
-			}
+	} else if (strcmp((*receivedMsg).command, "SERVER_THROWOUT") == 0) {
+		printf("%s\n", (*receivedMsg).message);
+		paired = 0;
+		if (paired == 0) {
+			printf("You are not paired with anyone");
 		}
+	}
 }
 
 
@@ -247,5 +246,3 @@ void sendFileData(struct datapacket *sendPacket) {
 	strncpy(sendPacket->message, string, MSG_SIZE);
 	sendDataPacket(&sendPacket);
 }
-
-

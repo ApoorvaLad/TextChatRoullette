@@ -26,24 +26,37 @@
 #define MAX_BUFFER_LEN 2048
 #define NAME_LEN 20
 
-struct packet {
-	char username[NAME_LEN];
-	char message[MSG_SIZE];
-	char command[COM_SIZE];
-};
-
 int startServer;
 int pairedPartners[ACTIVE_LIST];
 int blockedUsers[ACTIVE_LIST];
 int noOfBytesUsed[ACTIVE_LIST];
 char clientUser[ACTIVE_LIST][NAME_LEN];
 
+struct packet {
+	char username[NAME_LEN];
+	char message[MSG_SIZE];
+	char command[COM_SIZE];
+};
+
+int serverHost(struct addrinfo *serverDetails, struct addrinfo **serverInfo,struct addrinfo **addressInfoPointer, char *portNo);
+int removeUser(int fdSocket);
 void removeChat(int fdSocket, int reset);
 void removeChats(int senderSocket, int receiverSocket);
-int serverHost(struct addrinfo *serverDetails, struct addrinfo **serverInfo,
-		struct addrinfo **addressInfoPointer, char *portNo);
-int serverHost(struct addrinfo *serverDetails, struct addrinfo **serverInfo,
-		struct addrinfo **addressInfoPointer, char *portNo) {
+void removeAllUsers();
+void clearChatList();
+void removeSocket(int fdSocket);
+int socketClose(int fdSocket, int flag, int free_socket, fd_set *socketSet);
+void acceptClient(int fdSocket);
+void unmarshellRequest(int fdSocket, fd_set *socketSet);
+void processIncomingRequest(int fdSocket, struct packet *msgReceived);
+int activateChat(int senderSocket, char* username);
+void handleTransferData(int senderSocket, struct packet *msgReceived);
+void messageHandler(int senderSocket, struct packet *msgReceived);
+void initiateChat(int senderSocket, int receiverSocket, char* username);
+void sendDataPacket(int receiverSocket, struct packet *sendPacket);
+void asignUserAlias(int fdSocket1, int fdSocket2, char* username);
+
+int serverHost(struct addrinfo *serverDetails, struct addrinfo **serverInfo,struct addrinfo **addressInfoPointer, char *portNo) {
 	int error_status, listener;
 	int opt_value = 1;
 
@@ -126,16 +139,16 @@ void removeSocket(int fdSocket) {
 	}
 }
 
-int socketClose(int fdSocket, int flag, int free_socket, fd_set *master) {
+int socketClose(int fdSocket, int flag, int free_socket, fd_set *socketSet) {
 	removeSocket(fdSocket);
 	if (free_socket) {
 		close(fdSocket);
-		FD_CLR(fdSocket, master);
+		FD_CLR(fdSocket, socketSet);
 		return 1;
 	}
 	int success = shutdown(fdSocket, flag);
 	if (success == 0) {
-		FD_CLR(fdSocket, master);
+		FD_CLR(fdSocket, socketSet);
 		return 1;
 	}
 	return 0;
@@ -169,8 +182,7 @@ void launchNewConnection(int fdSocket) {
 			strcpy(ack_packet.message, "You are on a chat queue");
 		}
 	}
-	if (sendDataPacket(fdSocket, &ack_packet) == -1)
-		perror("send");
+	sendDataPacket(fdSocket, &ack_packet);
 }
 
 void asignUserAlias(int fdSocket1, int fdSocket2, char* username) {
@@ -188,6 +200,7 @@ void asignUserAlias(int fdSocket1, int fdSocket2, char* username) {
 				username);
 	}
 }
+
 void sendDataPacket(int receiverSocket, struct packet *sendPacket) {
 
 	int packetLength = sizeof *sendPacket;
@@ -228,14 +241,12 @@ void initiateChat(int senderSocket, int receiverSocket, char* username) {
 	pairedPartners[senderSocket] = receiverSocket;
 
 	struct packet receivePacket, sendPacket;
-	strcpy(receivePacket.command, "KEEP ALIVE");
-	strcpy(sendPacket.command, "KEEP ALIVE");
-	strcpy(receivePacket.message,
-			"You are chatting with -------------------------------- ");
+	strcpy(receivePacket.command, "KEEP_ALIVE");
+	strcpy(sendPacket.command, "KEEP_ALIVE");
+	strcpy(receivePacket.message,"You are chatting with -------------------------------- ");
 	strcat(receivePacket.message, clientUser[senderSocket]);
 	strcat(receivePacket.message, "\n Type CHAT and start chatting");
-	strcpy(sendPacket.message,
-			"You are chatting with -------------------------------- ");
+	strcpy(sendPacket.message,"You are chatting with -------------------------------- ");
 	strcat(sendPacket.message, clientUser[receiverSocket]);
 	strcat(sendPacket.message, "\n Type CHAT and start chatting");
 	sendDataPacket(receiverSocket, &receivePacket);
@@ -347,7 +358,6 @@ void handleTransferData(int senderSocket, struct packet *msgReceived) {
 }
 
 void processIncomingRequest(int fdSocket, struct packet *msgReceived) {
-	printf(msgReceived->message);
 	if (!strcmp(msgReceived->command, "BEGIN")) {
 		if (blockedUsers[fdSocket] > 0) {
 			struct packet send_packet;
@@ -381,21 +391,18 @@ void processIncomingRequest(int fdSocket, struct packet *msgReceived) {
 		strcpy(help_packet.command, "HELP");
 		strcpy(help_packet.username, "Server");
 		strcpy(help_packet.message,
-				"\n- CONNECT: Connect to server\n- CHAT: Start chatting\n- BEGIN: Request chat partner\n- QUIT: End chatting\n- EXIT: Exit TCR chat client\n- HELP: Usage");
+				"\n- CONNECT: Connect to server\n- CHAT: Start chatting\n- BEGIN: Request chat partner\n- QUIT: End chatting\n- EXIT: Exit the active chat\n- HELP: Usage");
 		sendDataPacket(fdSocket, &help_packet);
 
 	}
 }
 
-void unmarshellRequest(int fdSocket, fd_set *master) {
-
+void unmarshellRequest(int fdSocket, fd_set *socketSet) {
 	int num_bytes;
-	char buf[MAX_BUFFER_LEN];
-
 	struct packet received_message;
 	if ((num_bytes = recv(fdSocket, (void *) &received_message,
 			sizeof(struct packet), 0)) <= 0) {
-		socketClose(fdSocket, SO_KEEPALIVE, 1, master);
+		socketClose(fdSocket, SO_KEEPALIVE, 1, socketSet);
 	} else {
 		processIncomingRequest(fdSocket, &received_message);
 	}

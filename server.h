@@ -38,7 +38,6 @@ struct packet {
 	char command[COM_SIZE];
 };
 
-int serverHost(struct addrinfo *serverDetails, struct addrinfo **serverInfo,struct addrinfo **addressInfoPointer, char *portNo);
 int removeUser(int fdSocket);
 void removeChat(int fdSocket, int reset);
 void removeChats(int senderSocket, int receiverSocket);
@@ -55,54 +54,6 @@ void messageHandler(int senderSocket, struct packet *msgReceived);
 void initiateChat(int senderSocket, int receiverSocket, char* username);
 void sendDataPacket(int receiverSocket, struct packet *sendPacket);
 void asignUserAlias(int fdSocket1, int fdSocket2, char* username);
-
-int serverHost(struct addrinfo *serverDetails, struct addrinfo **serverInfo,struct addrinfo **addressInfoPointer, char *portNo) {
-	int error_status, listener;
-	int opt_value = 1;
-
-	memset(serverDetails, 0, sizeof *serverDetails);
-	(*serverDetails).ai_family = AF_INET;
-	(*serverDetails).ai_socktype = SOCK_STREAM;
-
-	if ((error_status = getaddrinfo(NULL, portNo, serverDetails, &(*serverInfo)))
-			!= 0) {
-		printf("Failed to fetch address information");
-		exit(1);
-	}
-
-	addressInfoPointer = serverInfo;
-	while ((*addressInfoPointer) != NULL) {
-		if ((listener = socket((*addressInfoPointer)->ai_family,
-				(*addressInfoPointer)->ai_socktype,
-				(*addressInfoPointer)->ai_protocol)) == -1) {
-			(*addressInfoPointer) = (*addressInfoPointer)->ai_next;
-			continue;
-		}
-		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt_value,
-				sizeof(int)) == -1) {
-			exit(1);
-		}
-		if (bind(listener, (*addressInfoPointer)->ai_addr,
-				(*addressInfoPointer)->ai_addrlen) == -1) {
-			close(listener);
-			(*addressInfoPointer) = (*addressInfoPointer)->ai_next;
-			continue;
-		}
-		break;
-	}
-
-	freeaddrinfo(*serverInfo);
-
-	if ((*addressInfoPointer) == NULL) {
-		printf("Binding failed. Please check server for multiple instances.\n");
-		exit(2);
-	}
-	if (listen(listener, BACKLOG) == -1) {
-		printf("Listening failed. Please check server configuration.\n");
-		exit(3);
-	}
-	return listener;
-}
 
 int removeUser(int fdSocket) {
 	if (fdSocket >= ACTIVE_LIST) {

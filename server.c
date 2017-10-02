@@ -275,6 +275,50 @@ void *receivedMessage(void *param, int fdSocket) {
 }
 
 
+int serverConnect() {
+	struct addrinfo hints, *servinfo, *p;
+	int listener, error_status, opt_value = 1;
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET;
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_socktype = SOCK_STREAM;
+	if ((error_status = getaddrinfo(NULL, PORT_NO, &hints, &servinfo)) != 0) {
+		printf("Cannot get address info exiting server now");
+		exit(1);
+	}
+
+	p = servinfo;
+	while (p != NULL) {
+		if ((listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
+				== -1) {
+			p = p->ai_next;
+			continue;
+		}
+		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt_value,
+				sizeof(int)) == -1) {
+			exit(1);
+		}
+		if (bind(listener, p->ai_addr, p->ai_addrlen) == -1) {
+			close(listener);
+			p = p->ai_next;
+			continue;
+		}
+		break;
+	}
+
+	freeaddrinfo(servinfo);
+	if (p == NULL) {
+		printf(
+				"FAILED to bind. EXITING server. This can happen when you have already run another instance of TCR server on the same machine. Please check it.\n");
+		exit(2);
+	}
+	if (listen(listener, BACKLOG) == -1) {
+		printf("FAILED to listen. EXITING server.\n");
+		exit(3);
+	}
+	return listener;
+}
+
 int main() {
 
 	startServer = 0;
@@ -307,7 +351,7 @@ int main() {
 	while (!startServer)
 		;
 
-	int socketListener = serverHost(&serverDetails, &serverInfo,&addressInfoPointer, PORT_NO);
+	int socketListener = serverConnect();
 
 	FD_SET(socketListener, &socketSet);
 

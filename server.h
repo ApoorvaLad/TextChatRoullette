@@ -196,7 +196,7 @@ void initiateChat(int senderSocket, int receiverSocket, char* username) {
 	strcpy(sendPacket.command, "KEEP_ALIVE");
 	strcpy(receivePacket.message,"You are chatting with -------------------------------- ");
 	strcat(receivePacket.message, clientUser[senderSocket]);
-	strcat(receivePacket.message, "\n Type CHAT and start chatting");
+	strcat(receivePacket.message, "\nType CHAT and start chatting");
 	strcpy(sendPacket.message,"You are chatting with -------------------------------- ");
 	strcat(sendPacket.message, clientUser[receiverSocket]);
 	strcat(sendPacket.message, "\n Type CHAT and start chatting");

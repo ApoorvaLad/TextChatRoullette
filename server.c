@@ -47,33 +47,36 @@ void unblockUser(int fdSocket) {
 
 void throwout(int fdSocket) {
 
-	char person1[20];
-	char person2[20];
+	char person1[100];
+	char person2[100];
+	strcpy(person1, "Server has issued - THROWOUT");
+	strcpy(person2, "Sever has issued - THROWOUT on your partner");
 
-	strcpy(person1, "You are THROWN OUT by the server");
-	strcpy(person2, "You partner has been THROWN OUT");
+	strcpy(person1, "Server has stopped your active chat");
 
 	if (pairedPartners[fdSocket] != fdSocket && fdSocket > -1) {
 
-		struct packet throwPacketClient1;
-		struct packet throwPacketClient2;
-		strcpy(throwPacketClient1.command, "SERVER_THROWOUT");
-		strcpy(throwPacketClient2.command, "SERVER_THROWOUT");
+		struct packet throwPacket;
+		struct packet throwPacketClient;
+		strcpy(throwPacket.command, "SERVER_THROWOUT");
+		strcpy(throwPacketClient.command, "SERVER_THROWOUT");
 
-		strcpy(throwPacketClient1.message, person1);
-		strcpy(throwPacketClient2.message, person2);
+		strcpy(throwPacket.message, person1);
+		strcpy(throwPacketClient.message, person2);
 
-		sendDataPacket(fdSocket, &throwPacketClient1);
-		sendDataPacket(pairedPartners[fdSocket], &throwPacketClient2);
+		sendDataPacket(fdSocket, &throwPacket);
+		sendDataPacket(pairedPartners[fdSocket], &throwPacketClient);
 
 		removeChats(fdSocket, pairedPartners[fdSocket]);
 	} else if (pairedPartners[fdSocket] == fdSocket) {
-		struct packet throwPacketClient1;
-		strcpy(throwPacketClient1.command, "SERVER_THROWOUT");
-		strcpy(throwPacketClient1.message, person1);
-		sendDataPacket(fdSocket, &throwPacketClient1);
+		struct packet throw_packet;
+		strcpy(throw_packet.command, "SERVER_THROWOUT");
+
+		strcpy(throw_packet.message, person1);
+		sendDataPacket(fdSocket, &throw_packet);
 		removeChat(fdSocket, 1);
 	}
+
 }
 
 void endServer() {
